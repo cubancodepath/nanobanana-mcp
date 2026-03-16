@@ -35,19 +35,23 @@ body {
 
 /* ── Hero ── */
 .hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   padding: 64px 0 48px;
   animation: fadeUp var(--dur-enter) var(--ease-out) both;
 }
 
 .hero__icon-wrap {
-  display: inline-block;
+  display: block;
   border: var(--border);
   border-radius: 20px;
   box-shadow: var(--shadow);
   margin-bottom: 28px;
   animation: float 3.6s ease-in-out infinite;
   overflow: hidden;
+  line-height: 0;
 }
 
 .hero__icon-wrap img { display: block; }
