@@ -44,7 +44,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
         const content: any[] = [];
         if (result.text) content.push({ type: "text", text: result.text });
         for (const img of result.images) {
-          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType });
+          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType, annotations: { audience: ["user"], priority: 1 } });
         }
         if (content.length === 0) content.push({ type: "text", text: "No image returned." });
         return { content };
@@ -73,7 +73,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
         const content: any[] = [];
         if (result.text) content.push({ type: "text", text: result.text });
         for (const img of result.images) {
-          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType });
+          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType, annotations: { audience: ["user"], priority: 1 } });
         }
         if (content.length === 0) content.push({ type: "text", text: "No image returned." });
         return { content };
