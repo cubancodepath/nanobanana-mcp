@@ -13,12 +13,13 @@ type Env = {
 
 const app = new Hono<{ Bindings: Env }>();
 
+// ── OAuth ──
+
 app.get("/authorize", async (c) => {
   const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
   if (!oauthReqInfo.clientId) {
     return c.text("Invalid OAuth request", 400);
   }
-
   return c.html(renderForm(encodeURIComponent(JSON.stringify(oauthReqInfo))));
 });
 
@@ -44,6 +45,8 @@ app.post("/authorize", async (c) => {
   return c.redirect(redirectTo);
 });
 
+// ── R2 images ──
+
 app.get("/images/*", async (c) => {
   const key = c.req.path.replace("/images/", "");
   if (!key) return c.text("Not found", 404);
@@ -58,33 +61,54 @@ app.get("/images/*", async (c) => {
   return new Response(object.body, { headers });
 });
 
+// ── Fallback ──
+
 app.all("/*", (c) => {
   return c.text("NanoBanana MCP Server", 200);
 });
 
+// ── Auth form template ──
+
 function renderForm(oauthData: string, error?: string) {
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>NanoBanana MCP - Authorization</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 400px; margin: 80px auto; padding: 0 20px; }
-    h1 { font-size: 1.5rem; }
-    input[type="password"] { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
-    button { width: 100%; padding: 12px; background: #f5a623; color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
-    button:hover { background: #e09510; }
-    .error { color: #d32f2f; margin-top: 10px; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#1a1a2e;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(circle,rgba(245,214,35,.07) 1px,transparent 1px);background-size:22px 22px}
+    .auth-card{background:#16213e;border:3px solid #1a1a2e;border-radius:10px;box-shadow:5px 5px 0 #1a1a2e;padding:36px 32px;max-width:400px;width:100%;margin:20px;animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both}
+    .auth-icon{text-align:center;margin-bottom:20px}
+    .auth-icon img{border-radius:12px;border:3px solid #1a1a2e;box-shadow:3px 3px 0 #1a1a2e}
+    h1{font-size:1.6rem;font-weight:900;color:#f5d623;text-align:center;text-shadow:2px 2px 0 #1a1a2e,-1px -1px 0 #1a1a2e,1px -1px 0 #1a1a2e,-1px 1px 0 #1a1a2e;margin-bottom:8px}
+    .subtitle{text-align:center;color:rgba(255,255,255,.6);font-size:.85rem;margin-bottom:24px}
+    .error{color:#ff6b6b;text-align:center;font-weight:700;margin-bottom:16px;padding:8px 12px;background:rgba(255,107,107,.1);border:2px solid rgba(255,107,107,.3);border-radius:8px}
+    input[type="password"]{width:100%;padding:12px 14px;border:2px solid rgba(245,214,35,.4);border-radius:8px;font-size:1rem;background:#1a1a2e;color:#fff;outline:none;transition:border-color .2s ease}
+    input[type="password"]:focus{border-color:#f5d623}
+    input[type="password"]::placeholder{color:rgba(255,255,255,.35)}
+    button[type="submit"]{width:100%;padding:14px;margin-top:14px;background:#f5a623;color:#1a1a2e;border:3px solid #1a1a2e;border-radius:8px;font-size:1rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;box-shadow:3px 3px 0 #1a1a2e;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,background .2s ease}
+    button[type="submit"]:hover{background:#f5d623;transform:translate(-1px,-2px);box-shadow:4px 4px 0 #1a1a2e}
+    button[type="submit"]:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #1a1a2e}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    @media(prefers-reduced-motion:reduce){*{animation-duration:1ms!important;transition-duration:1ms!important}}
   </style>
 </head>
 <body>
-  <h1>NanoBanana MCP</h1>
-  ${error ? `<p class="error">${error}</p>` : "<p>Enter your secret token to authorize this connection.</p>"}
-  <form method="POST" action="/authorize">
-    <input type="hidden" name="oauthData" value="${oauthData}" />
-    <input type="password" name="token" placeholder="Secret token" required autofocus />
-    <button type="submit">Authorize</button>
-  </form>
+  <div class="auth-card">
+    <div class="auth-icon">
+      <img src="https://nanobanana.cubancodelab.com/icon.png" width="64" height="64" alt="NanoBanana" />
+    </div>
+    <h1>NanoBanana MCP</h1>
+    <p class="subtitle">Enter your secret token to authorize</p>
+    ${error ? `<p class="error">${error}</p>` : ""}
+    <form method="POST" action="/authorize">
+      <input type="hidden" name="oauthData" value="${oauthData}" />
+      <input type="password" name="token" placeholder="Secret token" required autofocus />
+      <button type="submit">Authorize</button>
+    </form>
+  </div>
 </body>
 </html>`;
 }

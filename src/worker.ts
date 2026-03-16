@@ -40,7 +40,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
         httpMetadata: { contentType: img.mimeType },
       });
 
-      const origin = "https://nanobanana-mcp.bjvalmaseda.workers.dev";
+      const origin = "https://nanobanana.cubancodelab.com";
       const url = `${origin}/images/${key}`;
       content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType });
       content.push({ type: "text", text: `Download: ${url}` });
