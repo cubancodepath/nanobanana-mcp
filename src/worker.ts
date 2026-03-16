@@ -3,6 +3,7 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NanoBananaClient } from "./api/client.js";
+import type { GenerationResult } from "./api/types.js";
 import authHandler from "./auth-handler.js";
 
 // Types for Cloudflare env bindings
@@ -12,7 +13,13 @@ type Env = {
   MCP_OBJECT: DurableObjectNamespace;
   COOKIE_ENCRYPTION_KEY: string;
   AUTH_SECRET_TOKEN: string;
+  IMAGES_BUCKET: R2Bucket;
 };
+
+function mimeToExt(mime: string): string {
+  const map: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+  return map[mime] ?? "png";
+}
 
 export class NanoBananaMCP extends McpAgent<Env> {
   server = new McpServer({
@@ -20,11 +27,32 @@ export class NanoBananaMCP extends McpAgent<Env> {
     version: "1.0.0",
   });
 
+  private async uploadToR2(result: GenerationResult): Promise<any[]> {
+    const content: any[] = [];
+    if (result.text) content.push({ type: "text", text: result.text });
+
+    for (const img of result.images) {
+      const ext = mimeToExt(img.mimeType);
+      const key = `generated/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const bytes = Uint8Array.from(atob(img.base64Data), (c) => c.charCodeAt(0));
+
+      await this.env.IMAGES_BUCKET.put(key, bytes, {
+        httpMetadata: { contentType: img.mimeType },
+      });
+
+      const origin = "https://nanobanana-mcp.bjvalmaseda.workers.dev";
+      const url = `${origin}/images/${key}`;
+      content.push({ type: "text", text: `Image generated successfully!\n\nDownload: ${url}` });
+    }
+
+    if (content.length === 0) content.push({ type: "text", text: "No image returned." });
+    return content;
+  }
+
   async init() {
-    // Simple test tool first
     this.server.registerTool("generate_image", {
       title: "Generate Image",
-      description: "Generate an image from a text prompt using Nano Banana.",
+      description: "Generate an image from a text prompt using Nano Banana. Returns a URL to download the image.",
       inputSchema: {
         prompt: z.string().describe("Descriptive text of the image to generate"),
         model: z.enum(["flash", "pro"]).optional().describe("Model: flash (fast) or pro (quality). Default: flash"),
@@ -40,13 +68,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
           aspectRatio: args.aspect_ratio ?? undefined,
           imageSize: args.image_size ?? undefined,
         });
-
-        const content: any[] = [];
-        if (result.text) content.push({ type: "text", text: result.text });
-        for (const img of result.images) {
-          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType, annotations: { audience: ["user"], priority: 1 } });
-        }
-        if (content.length === 0) content.push({ type: "text", text: "No image returned." });
+        const content = await this.uploadToR2(result);
         return { content };
       } catch (error: any) {
         return { isError: true, content: [{ type: "text" as const, text: `Error: ${error.message}` }] };
@@ -55,7 +77,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
 
     this.server.registerTool("edit_image", {
       title: "Edit Image",
-      description: "Edit an existing image using a text prompt and base64 image data.",
+      description: "Edit an existing image using a text prompt and base64 image data. Returns a URL to download the result.",
       inputSchema: {
         prompt: z.string().describe("Description of the desired edit"),
         image_base64: z.string().describe("Base64-encoded image data"),
@@ -69,13 +91,7 @@ export class NanoBananaMCP extends McpAgent<Env> {
           imageBase64: args.image_base64,
           imageMimeType: args.image_mime_type ?? "image/png",
         });
-
-        const content: any[] = [];
-        if (result.text) content.push({ type: "text", text: result.text });
-        for (const img of result.images) {
-          content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType, annotations: { audience: ["user"], priority: 1 } });
-        }
-        if (content.length === 0) content.push({ type: "text", text: "No image returned." });
+        const content = await this.uploadToR2(result);
         return { content };
       } catch (error: any) {
         return { isError: true, content: [{ type: "text" as const, text: `Error: ${error.message}` }] };

@@ -24,6 +24,12 @@
       "id": "8882a2f6b804478cb17f74e7b77ceaf3"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "IMAGES_BUCKET",
+      "bucket_name": "nanobanana-images"
+    }
+  ],
   "observability": {
     "enabled": true
   }

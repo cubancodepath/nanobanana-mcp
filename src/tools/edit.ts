@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NanoBananaClient } from "../api/client.js";
@@ -7,7 +8,7 @@ export function registerEditTool(server: McpServer, client: NanoBananaClient) {
   server.registerTool("edit_image", {
     title: "Edit Image",
     description:
-      "Edit an existing image using a text prompt. Provide the image as base64 data. Can add, remove, or modify elements, change styles, adjust colors, etc.",
+      "Edit an existing image using a text prompt. Provide the image as base64 data. Can add, remove, or modify elements, change styles, adjust colors, etc. Optionally save to a file path.",
     inputSchema: {
       prompt: z.string().describe("Description of the desired edit"),
       image_base64: z.string().describe("Base64-encoded image data"),
@@ -27,8 +28,12 @@ export function registerEditTool(server: McpServer, client: NanoBananaClient) {
         .enum(["512", "1K", "2K", "4K"])
         .optional()
         .describe("Resolution. Default: 1K"),
+      output_path: z
+        .string()
+        .optional()
+        .describe("Optional file path to save the edited image (e.g. /tmp/edited.png)"),
     },
-  }, async ({ prompt, image_base64, image_mime_type, model, aspect_ratio, image_size }) => {
+  }, async ({ prompt, image_base64, image_mime_type, model, aspect_ratio, image_size, output_path }) => {
     try {
       const result = await client.editImage({
         prompt,
@@ -38,7 +43,17 @@ export function registerEditTool(server: McpServer, client: NanoBananaClient) {
         aspectRatio: aspect_ratio ?? undefined,
         imageSize: image_size ?? undefined,
       });
-      return formatResult(result);
+      const formatted = formatResult(result);
+
+      if (output_path && result.images.length > 0) {
+        writeFileSync(output_path, Buffer.from(result.images[0].base64Data, "base64"));
+        formatted.content.push({
+          type: "text" as const,
+          text: `Image saved to: ${output_path}`,
+        });
+      }
+
+      return formatted;
     } catch (error) {
       return {
         isError: true,

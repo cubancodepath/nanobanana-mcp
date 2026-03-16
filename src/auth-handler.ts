@@ -8,6 +8,7 @@ type Env = {
   COOKIE_ENCRYPTION_KEY: string;
   AUTH_SECRET_TOKEN: string;
   OAUTH_PROVIDER: OAuthHelpers;
+  IMAGES_BUCKET: R2Bucket;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -41,6 +42,20 @@ app.post("/authorize", async (c) => {
   });
 
   return c.redirect(redirectTo);
+});
+
+app.get("/images/*", async (c) => {
+  const key = c.req.path.replace("/images/", "");
+  if (!key) return c.text("Not found", 404);
+
+  const object = await c.env.IMAGES_BUCKET.get(key);
+  if (!object) return c.text("Image not found", 404);
+
+  const headers = new Headers();
+  headers.set("Content-Type", object.httpMetadata?.contentType ?? "image/png");
+  headers.set("Cache-Control", "public, max-age=604800");
+
+  return new Response(object.body, { headers });
 });
 
 app.all("/*", (c) => {
