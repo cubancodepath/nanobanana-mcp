@@ -1,7 +1,9 @@
 # NanoBanana MCP
 
 <p align="center">
-  <img src="icon.png" alt="NanoBanana MCP" width="128" />
+  <a href="https://nanobanana.cubancodepath.com">
+    <img src="image.png" alt="NanoBanana MCP" width="600" />
+  </a>
 </p>
 
 <p align="center">
