@@ -4,6 +4,11 @@
   <img src="icon.png" alt="NanoBanana MCP" width="128" />
 </p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/@cubancodepath/nanobanana-mcp"><img src="https://img.shields.io/npm/v/@cubancodepath/nanobanana-mcp" alt="npm" /></a>
+  <a href="https://nanobanana.cubancodepath.com"><img src="https://img.shields.io/badge/landing-live-f5d623" alt="Landing" /></a>
+</p>
+
 An MCP (Model Context Protocol) server for AI image generation powered by Google Gemini. Works with Claude Code (local) and claude.ai Connectors (remote via Cloudflare Workers).
 
 ## Features
@@ -14,6 +19,22 @@ An MCP (Model Context Protocol) server for AI image generation powered by Google
 - **Configurable Output** - Aspect ratio, resolution (512 to 4K), and format options
 - **Dual Deployment** - Run locally via stdio or remotely on Cloudflare Workers
 - **Image Storage** - Remote: images uploaded to R2 with public URLs (auto-deleted after 7 days). Local: optional `output_path` to save images to disk
+
+## Quick Install (Claude Code)
+
+```bash
+claude mcp add nanobanana -e NANOBANANA_API_KEY=your-api-key -- npx @cubancodepath/nanobanana-mcp
+```
+
+Get your API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Restart Claude Code and start generating images.
+
+## Quick Install (claude.ai)
+
+Add as a Connector in **Settings > Connectors** with URL:
+
+```
+https://nanobanana.cubancodepath.com/mcp
+```
 
 ## Tools
 
@@ -47,147 +68,130 @@ An MCP (Model Context Protocol) server for AI image generation powered by Google
 ### Output behavior
 
 - **Claude Code (local)**: Returns the image inline (base64) so Claude can see it. If `output_path` is provided, also saves the image to disk.
-- **claude.ai (remote)**: Uploads the image to Cloudflare R2 and returns a public download URL. Images are automatically deleted after 7 days.
+- **claude.ai (remote)**: Uploads the image to Cloudflare R2 and returns both the inline image and a public download URL. Images are automatically deleted after 7 days.
 
-## Setup
+## Self-hosting
+
+If you want to deploy your own instance, this project is a **pnpm monorepo** with two packages:
+
+| Package | Description |
+|---------|-------------|
+| `packages/mcp` | MCP server — Cloudflare Worker (Durable Objects, KV, R2) + npm package |
+| `packages/landing` | Landing page — Astro site deployed as Cloudflare Worker with static assets |
 
 ### Prerequisites
 
 - Node.js 18+
+- [pnpm](https://pnpm.io/) 10+
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier works)
 - A Google Gemini API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-
-### Quick Install (Claude Code)
-
-```bash
-claude mcp add nanobanana -e NANOBANANA_API_KEY=your-api-key -- npx @cubancodepath/nanobanana-mcp
-```
-
-Restart Claude Code and start generating images.
 
 ### Install from source
 
 ```bash
 git clone https://github.com/cubancodepath/nanobanana-mcp.git
 cd nanobanana-mcp
-npm install
-npm run build
+pnpm install
+pnpm build
 ```
 
-## Usage
-
-### Option 1: Local (Claude Code)
-
-If you installed via `npx` above, you're ready. If you installed from source:
+### Deploy MCP Worker
 
 ```bash
-claude mcp add nanobanana -e NANOBANANA_API_KEY=your-api-key -- node /path/to/nanobanana-mcp/dist/index.js
-```
-
-Restart Claude Code and start generating images:
-
-```
-> Generate an image of a sunset over the ocean
-> Generate an image of a cat, save it to /tmp/cat.png
-```
-
-### Option 2: Remote (claude.ai Connectors via Cloudflare Workers)
-
-Deploy as a remote MCP server so you can use it from claude.ai in the browser.
-
-#### 1. Cloudflare Account Setup
-
-You need a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier works).
-
-#### 2. Create KV Namespace and R2 Bucket
-
-```bash
-# KV namespace for OAuth
+# Create required resources
 npx wrangler kv namespace create "OAUTH_KV"
-
-# R2 bucket for storing generated images
 npx wrangler r2 bucket create nanobanana-images
-
-# Auto-delete images after 7 days
 npx wrangler r2 bucket lifecycle add nanobanana-images "auto-delete-7d" --expire-days 7 --force
-```
 
-Copy the KV `id` from the output and update `wrangler.jsonc`:
+# Update packages/mcp/wrangler.jsonc with your KV id
 
-```jsonc
-"kv_namespaces": [
-  {
-    "binding": "OAUTH_KV",
-    "id": "your-kv-id-here"
-  }
-]
-```
-
-#### 3. Set Secrets
-
-```bash
-# Your Gemini API key
+# Set secrets
 npx wrangler secret put NANOBANANA_API_KEY
+npx wrangler secret put COOKIE_ENCRYPTION_KEY    # openssl rand -hex 32
+npx wrangler secret put AUTH_SECRET_TOKEN         # your personal access token
 
-# Cookie encryption key (generate with: openssl rand -hex 32)
-npx wrangler secret put COOKIE_ENCRYPTION_KEY
-
-# Secret token to protect access (only you should know this)
-npx wrangler secret put AUTH_SECRET_TOKEN
+# Deploy
+pnpm deploy:mcp
 ```
 
-#### 4. Deploy
+### Deploy Landing
 
 ```bash
-npm run worker:deploy
+pnpm deploy:landing
 ```
 
-Your server will be available at `https://nanobanana.cubancodepath.com`.
+### Custom Domain (optional)
 
-#### 5. Connect to claude.ai
+To serve both the landing page and MCP from the same domain:
 
-1. Go to **claude.ai > Settings > Connectors > Add custom connector**
-2. **Name**: NanoBanana
-3. **URL**: `https://nanobanana.cubancodepath.com/mcp`
-4. When redirected to the authorization page, enter your `AUTH_SECRET_TOKEN`
-5. Done! Start generating images in claude.ai
-
-Generated images will include a download URL that stays active for 7 days.
+1. Assign a custom domain to the landing Worker in the Cloudflare dashboard
+2. Add Worker Routes for `/mcp*`, `/authorize*`, `/token*`, `/register*`, `/images/*`, `/.well-known/*` pointing to the MCP Worker
 
 ## Architecture
 
 ```
 nanobanana-mcp/
-├── src/
-│   ├── index.ts           # Local stdio entry point (Claude Code)
-│   ├── worker.ts          # Cloudflare Worker entry point (claude.ai)
-│   ├── auth-handler.ts    # OAuth + secret token auth + image serving
-│   ├── api/
-│   │   ├── client.ts      # Gemini API client
-│   │   └── types.ts       # TypeScript interfaces
-│   └── tools/
-│       ├── generate.ts    # generate_image tool (local, with output_path)
-│       ├── edit.ts        # edit_image tool (local, with output_path)
-│       └── format.ts      # Response formatting (base64 inline)
-├── wrangler.jsonc         # Cloudflare Workers config (DO, KV, R2)
-├── tsconfig.json          # TypeScript config (local build)
-└── tsconfig.worker.json   # TypeScript config (worker type-check)
+├── packages/
+│   ├── mcp/                   # MCP server
+│   │   ├── src/
+│   │   │   ├── index.ts       # Local stdio entry point (Claude Code)
+│   │   │   ├── worker.ts      # Cloudflare Worker entry point (claude.ai)
+│   │   │   ├── auth-handler.ts # OAuth + secret token auth + R2 images
+│   │   │   ├── api/
+│   │   │   │   ├── client.ts  # Gemini API client
+│   │   │   │   └── types.ts   # TypeScript interfaces
+│   │   │   └── tools/
+│   │   │       ├── generate.ts # generate_image tool
+│   │   │       ├── edit.ts     # edit_image tool
+│   │   │       └── format.ts   # Response formatting
+│   │   └── wrangler.jsonc     # Worker config (DO, KV, R2)
+│   └── landing/               # Landing page
+│       ├── src/pages/
+│       │   └── index.astro    # Landing page
+│       ├── src/styles/
+│       │   └── global.css     # Comic-style CSS
+│       └── wrangler.jsonc     # Worker config (static assets)
+├── .github/workflows/
+│   ├── deploy-mcp.yml         # CI/CD: deploy Worker on push
+│   ├── deploy-landing.yml     # CI/CD: deploy landing on push
+│   └── publish-npm.yml        # CI/CD: publish to npm on release
+├── pnpm-workspace.yaml
+└── package.json               # Root scripts
 ```
 
 ## Development
 
 ```bash
-# Local development (stdio)
-npm run dev
+# Install dependencies
+pnpm install
 
-# Worker local development
-npm run worker:dev
+# Build all packages
+pnpm build
 
-# Build for production
-npm run build
+# Local MCP development (stdio)
+pnpm dev:mcp
 
-# Deploy worker
-npm run worker:deploy
+# Local landing development
+pnpm dev:landing
+
+# Deploy MCP Worker
+pnpm deploy:mcp
+
+# Deploy landing
+pnpm deploy:landing
 ```
+
+## CI/CD
+
+Deployments are automated via GitHub Actions:
+
+| Workflow | Trigger | Action |
+|----------|---------|--------|
+| Deploy MCP Worker | Push to `packages/mcp/**` | Build + deploy Worker |
+| Deploy Landing | Push to `packages/landing/**` | Build + deploy landing |
+| Publish to npm | GitHub Release | Build + publish to npm |
+
+Required GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `NPM_TOKEN`.
 
 ## License
 
