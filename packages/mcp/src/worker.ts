@@ -51,7 +51,6 @@ export class NanoBananaMCP extends McpAgent<Env> {
       const url = `${origin}/images/${key}`;
       content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType });
       content.push({ type: "text", text: `Download: ${url}` });
-      content.push({ type: "text", text: `BASE64_IMAGE:${img.base64Data}` });
     }
 
     if (content.length === 0) content.push({ type: "text", text: "No image returned." });
