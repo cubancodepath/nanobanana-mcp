@@ -141,13 +141,13 @@ npx wrangler secret put AUTH_SECRET_TOKEN
 npm run worker:deploy
 ```
 
-Your server will be available at `https://nanobanana-mcp.your-subdomain.workers.dev`.
+Your server will be available at `https://nanobanana.cubancodepath.com`.
 
 #### 5. Connect to claude.ai
 
 1. Go to **claude.ai > Settings > Connectors > Add custom connector**
 2. **Name**: NanoBanana
-3. **URL**: `https://nanobanana-mcp.your-subdomain.workers.dev/mcp`
+3. **URL**: `https://nanobanana.cubancodepath.com/mcp`
 4. When redirected to the authorization page, enter your `AUTH_SECRET_TOKEN`
 5. Done! Start generating images in claude.ai
 

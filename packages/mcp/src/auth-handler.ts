@@ -98,7 +98,7 @@ function renderForm(oauthData: string, error?: string) {
 <body>
   <div class="auth-card">
     <div class="auth-icon">
-      <img src="https://nanobanana.cubancodelab.com/icon.png" width="64" height="64" alt="NanoBanana" />
+      <img src="https://nanobanana.cubancodepath.com/icon.png" width="64" height="64" alt="NanoBanana" />
     </div>
     <h1>NanoBanana MCP</h1>
     <p class="subtitle">Enter your secret token to authorize</p>
