@@ -1,37 +1,87 @@
 import type {
-  GenerateRequest,
-  EditRequest,
-  GenerateProRequest,
-  ApiResponse,
-  TaskSubmitData,
-  TaskStatusData,
-  ParsedTaskResult,
+  ContentPart,
+  GenerateContentRequest,
+  GenerateContentResponse,
+  GenerationResult,
 } from "./types.js";
 
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+
+const MODELS = {
+  flash: "gemini-3.1-flash-image-preview",
+  pro: "gemini-3-pro-image-preview",
+} as const;
+
+export type ModelId = keyof typeof MODELS;
+
 export class NanoBananaClient {
-  private baseUrl: string;
   private apiKey: string;
 
-  constructor(apiKey: string, baseUrl = "https://nanobnana.com") {
+  constructor(apiKey: string) {
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${path}`;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${this.apiKey}`,
+  async generateImage(opts: {
+    prompt: string;
+    model?: ModelId;
+    aspectRatio?: string;
+    imageSize?: string;
+  }): Promise<GenerationResult> {
+    const parts: ContentPart[] = [{ text: opts.prompt }];
+    return this.generate(parts, opts.model, opts.aspectRatio, opts.imageSize);
+  }
+
+  async editImage(opts: {
+    prompt: string;
+    imageBase64: string;
+    imageMimeType: string;
+    model?: ModelId;
+    aspectRatio?: string;
+    imageSize?: string;
+  }): Promise<GenerationResult> {
+    const parts: ContentPart[] = [
+      { text: opts.prompt },
+      {
+        inline_data: {
+          mime_type: opts.imageMimeType,
+          data: opts.imageBase64,
+        },
+      },
+    ];
+    return this.generate(parts, opts.model, opts.aspectRatio, opts.imageSize);
+  }
+
+  private async generate(
+    parts: ContentPart[],
+    model: ModelId = "flash",
+    aspectRatio?: string,
+    imageSize?: string
+  ): Promise<GenerationResult> {
+    const modelName = MODELS[model];
+    const url = `${BASE_URL}/models/${modelName}:generateContent`;
+
+    const body: GenerateContentRequest = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"],
+        ...(aspectRatio || imageSize
+          ? {
+              imageConfig: {
+                ...(aspectRatio && { aspectRatio }),
+                ...(imageSize && { imageSize }),
+              },
+            }
+          : {}),
+      },
     };
 
     const res = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": this.apiKey,
+      },
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -39,78 +89,31 @@ export class NanoBananaClient {
       throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
     }
 
-    const json = (await res.json()) as ApiResponse<T>;
+    const json = (await res.json()) as GenerateContentResponse;
 
-    if (json.code !== 200) {
-      throw new Error(`API error ${json.code}: ${json.message}`);
+    if (json.error) {
+      throw new Error(`API error ${json.error.code}: ${json.error.message}`);
     }
 
-    return json;
-  }
+    if (!json.candidates?.length) {
+      throw new Error("No candidates returned in the response.");
+    }
 
-  async generate(params: GenerateRequest): Promise<string> {
-    const res = await this.request<TaskSubmitData>("POST", "/api/generate", params);
-    return res.task_id ?? res.data!.task_id;
-  }
+    const responseParts = json.candidates[0].content.parts;
+    const result: GenerationResult = { images: [] };
 
-  async edit(params: EditRequest): Promise<string> {
-    const res = await this.request<TaskSubmitData>("POST", "/api/edit", params);
-    return res.task_id ?? res.data!.task_id;
-  }
-
-  async generatePro(params: GenerateProRequest): Promise<string> {
-    const res = await this.request<TaskSubmitData>("POST", "/api/v2/generate", params);
-    return res.data!.task_id;
-  }
-
-  async getStatus(taskId: string): Promise<ParsedTaskResult> {
-    const res = await this.request<TaskStatusData>(
-      "GET",
-      `/api/status?task_id=${encodeURIComponent(taskId)}`
-    );
-    return this.parseStatusData(res.data!);
-  }
-
-  async getStatusV2(taskId: string): Promise<ParsedTaskResult> {
-    const res = await this.request<TaskStatusData>(
-      "GET",
-      `/api/v2/status?task_id=${encodeURIComponent(taskId)}`
-    );
-    return this.parseStatusData(res.data!);
-  }
-
-  private parseStatusData(data: TaskStatusData): ParsedTaskResult {
-    let imageUrls: string[] = [];
-    if (data.response) {
-      try {
-        imageUrls = JSON.parse(data.response);
-      } catch {
-        imageUrls = [];
+    for (const part of responseParts) {
+      if (part.text) {
+        result.text = (result.text ?? "") + part.text;
+      }
+      if (part.inlineData) {
+        result.images.push({
+          mimeType: part.inlineData.mimeType,
+          base64Data: part.inlineData.data,
+        });
       }
     }
 
-    let prompt = "";
-    try {
-      const req = JSON.parse(data.request);
-      prompt = req.prompt ?? "";
-    } catch {
-      prompt = "";
-    }
-
-    const statusMap: Record<number, ParsedTaskResult["status"]> = {
-      0: "processing",
-      1: "completed",
-      [-1]: "failed",
-    };
-
-    return {
-      taskId: data.task_id,
-      status: statusMap[data.status] ?? "processing",
-      imageUrls,
-      prompt,
-      credits: data.consumed_credits ?? data.consumed_credit ?? 0,
-      createdAt: data.created_at,
-      errorMessage: data.error_message ?? undefined,
-    };
+    return result;
   }
 }

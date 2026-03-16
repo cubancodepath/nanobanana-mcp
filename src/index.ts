@@ -5,13 +5,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { NanoBananaClient } from "./api/client.js";
 import { registerGenerateTool } from "./tools/generate.js";
 import { registerEditTool } from "./tools/edit.js";
-import { registerGenerateProTool } from "./tools/generate-pro.js";
-import { registerCheckStatusTool } from "./tools/check-status.js";
 
 const apiKey = process.env.NANOBANANA_API_KEY;
 if (!apiKey) {
   console.error("Error: NANOBANANA_API_KEY environment variable is required.");
-  console.error("Set it in your MCP client config or export it in your shell.");
+  console.error("Get your API key from https://aistudio.google.com/apikey");
   process.exit(1);
 }
 
@@ -24,8 +22,6 @@ const server = new McpServer({
 
 registerGenerateTool(server, client);
 registerEditTool(server, client);
-registerGenerateProTool(server, client);
-registerCheckStatusTool(server, client);
 
 async function main() {
   const transport = new StdioServerTransport();

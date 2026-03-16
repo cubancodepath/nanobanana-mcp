@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nanobanana-mcp",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-03-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "NanoBananaMCP",
+        "name": "MCP_OBJECT"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["NanoBananaMCP"],
+      "tag": "v1"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "8882a2f6b804478cb17f74e7b77ceaf3"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
