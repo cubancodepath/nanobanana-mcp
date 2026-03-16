@@ -25,6 +25,13 @@ export class NanoBananaMCP extends McpAgent<Env> {
   server = new McpServer({
     name: "nanobanana",
     version: "1.0.0",
+    icons: [
+      {
+        src: "https://nanobanana.cubancodepath.com/icon.png",
+        mimeType: "image/png",
+        sizes: ["128x128"],
+      },
+    ],
   });
 
   private async uploadToR2(result: GenerationResult): Promise<any[]> {

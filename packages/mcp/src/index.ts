@@ -18,6 +18,13 @@ const client = new NanoBananaClient(apiKey);
 const server = new McpServer({
   name: "nanobanana",
   version: "1.0.0",
+  icons: [
+    {
+      src: "https://nanobanana.cubancodepath.com/icon.png",
+      mimeType: "image/png",
+      sizes: ["128x128"],
+    },
+  ],
 });
 
 registerGenerateTool(server, client);

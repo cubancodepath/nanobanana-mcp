@@ -42,7 +42,27 @@ app.post("/authorize", async (c) => {
     props: { authorized: true },
   });
 
-  return c.redirect(redirectTo);
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="2;url=${redirectTo}" />
+  <title>NanoBanana MCP - Authorized</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(circle,rgba(245,214,35,.07) 1px,transparent 1px);background-size:22px 22px}
+    .card{background:#16213e;border:3px solid #1a1a2e;border-radius:10px;box-shadow:5px 5px 0 #1a1a2e;padding:36px 32px;max-width:400px;text-align:center;animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both}
+    h1{font-size:1.4rem;color:#4ade80;margin-bottom:12px}
+    p{color:rgba(255,255,255,.6);font-size:.9rem;line-height:1.5}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Authorized!</h1>
+    <p>Redirecting back to claude.ai...<br/>You can close this tab if it doesn't redirect automatically.</p>
+  </div>
+</body>
+</html>`);
 });
 
 // ── R2 images ──
