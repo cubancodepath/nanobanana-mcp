@@ -42,7 +42,8 @@ export class NanoBananaMCP extends McpAgent<Env> {
 
       const origin = "https://nanobanana-mcp.bjvalmaseda.workers.dev";
       const url = `${origin}/images/${key}`;
-      content.push({ type: "text", text: `Image generated successfully!\n\nDownload: ${url}` });
+      content.push({ type: "image", data: img.base64Data, mimeType: img.mimeType });
+      content.push({ type: "text", text: `Download: ${url}` });
     }
 
     if (content.length === 0) content.push({ type: "text", text: "No image returned." });

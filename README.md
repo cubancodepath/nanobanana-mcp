@@ -56,10 +56,18 @@ An MCP (Model Context Protocol) server for AI image generation powered by Google
 - Node.js 18+
 - A Google Gemini API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 
-### Installation
+### Quick Install (Claude Code)
 
 ```bash
-git clone https://github.com/your-username/nanobanana-mcp.git
+claude mcp add nanobanana -e NANOBANANA_API_KEY=your-api-key -- npx @cubancodepath/nanobanana-mcp
+```
+
+Restart Claude Code and start generating images.
+
+### Install from source
+
+```bash
+git clone https://github.com/cubancodepath/nanobanana-mcp.git
 cd nanobanana-mcp
 npm install
 npm run build
@@ -69,7 +77,7 @@ npm run build
 
 ### Option 1: Local (Claude Code)
 
-Add the MCP server to Claude Code:
+If you installed via `npx` above, you're ready. If you installed from source:
 
 ```bash
 claude mcp add nanobanana -e NANOBANANA_API_KEY=your-api-key -- node /path/to/nanobanana-mcp/dist/index.js
